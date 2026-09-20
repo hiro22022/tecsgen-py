@@ -146,7 +146,8 @@ bug_test2-err:
 
 .PHONY: singleton-err
 singleton-err:
-	$(TEST_ERR.SH) 2 3 $@.cdl
+	# $(TEST_ERR.SH) 2 3 $@.cdl    # Ruby 版
+	$(TEST_ERR.SH) 8 3 $@.cdl
 
 .PHONY: param-err
 param-err:
@@ -154,11 +155,13 @@ param-err:
 
 .PHONY: domainPlugin-err
 domainPlugin-err:
-	$(TEST_ERR.SH) 3 0 -I ../cygwin $@.cdl
+	# $(TEST_ERR.SH) 3 0 -I ../cygwin $@.cdl    # Ruby 版
+	$(TEST_ERR.SH) 4 0 -I ../cygwin $@.cdl
 
 .PHONY: cell-err
 cell-err:
-	$(TEST_ERR.SH) 7 1 -I ../cygwin $@.cdl
+	# 	$(TEST_ERR.SH) 7 1 -I ../cygwin $@.cdl    # Ruby 版
+	$(TEST_ERR.SH) 6 1 -I ../cygwin $@.cdl
 
 .PHONY: struct-err
 struct-err:

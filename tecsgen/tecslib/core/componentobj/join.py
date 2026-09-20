@@ -18,6 +18,20 @@ from tecslib.core.toplevel import dbgPrint, print_exception
 from tecslib.rubylib.symbol import Sym
 
 
+def _ruby_at(lst, idx):
+    """Ruby の Array#[] 互換（範囲外は None）"""
+    if lst is None or idx < 0 or idx >= len(lst):
+        return None
+    return lst[idx]
+
+
+def _ruby_aset(lst, idx, val):
+    """Ruby の Array#[]= 互換（自動拡張）"""
+    while len(lst) <= idx:
+        lst.append(None)
+    lst[idx] = val
+
+
 class Join(BDNode, PluginModule):
 # 結合の左辺
 # @name:: string : 属性名 or 呼び口名
@@ -420,13 +434,17 @@ class Join(BDNode, PluginModule):
 
             sibling_level = i     # 兄弟となるレベル、もしくはどちらか一方が終わったレベル
 
+            # Ruby の Array#[] は範囲外で nil。Python は IndexError になるため安全に取る。
+            def _ruby_at(lst, idx):
+                return lst[idx] if 0 <= idx < len(lst) else None
+
             dbgPrint("sibling_level: {}\n".format(i))
-            if f1[i]:
+            if _ruby_at(f1, i):
                 dbgPrint("from: {}\n".format(f1[i].get_name()))
-            if f2[i]:
+            if _ruby_at(f2, i):
                 dbgPrint("to: {}\n".format(f2[i].get_name()))
 
-            if f1[sibling_level] and f2[sibling_level]:
+            if _ruby_at(f1, sibling_level) and _ruby_at(f2, sibling_level):
                 b_to_through = True
             else:
                 b_to_through = False
@@ -474,7 +492,7 @@ class Join(BDNode, PluginModule):
                 i -= 1
 
             # 兄弟レベルにおいて（to_through をチェックおよび挿入）
-            if f1[sibling_level] and f2[sibling_level]:
+            if _ruby_at(f1, sibling_level) and _ruby_at(f2, sibling_level):
                 dbgPrint("going from {} to {}\n".format(
                     f1[sibling_level].get_name(), f2[sibling_level].get_name()))
                 found = 0
@@ -665,6 +683,10 @@ class Join(BDNode, PluginModule):
             self.cdl_error("S1177 cannot specify 'through' in composite in current version")
             return
 
+        if ThroughPlugin is None and len_ > 0:
+            self.cdl_error("P2001 $1.rb : fail to load plugin", "ThroughPlugin")
+            return
+
         # 連続した through について、受け口側から順にセルを生成し解釈する
         i = len_ - 1
         while i >= 0:
@@ -677,9 +699,10 @@ class Join(BDNode, PluginModule):
             if i != len_ - 1:
 
                 try:
-                    next_cell_nsp = self.through_generated_list[i + 1].get_cell_namespace_path()
-                    next_port_name = self.through_generated_list[i + 1].get_through_entry_port_name()
-                    next_port_subscript = self.through_generated_list[i + 1].get_through_entry_port_subscript()
+                    next_plugin = _ruby_at(self.through_generated_list, i + 1)
+                    next_cell_nsp = next_plugin.get_cell_namespace_path()
+                    next_port_name = next_plugin.get_through_entry_port_name()
+                    next_port_subscript = next_plugin.get_through_entry_port_subscript()
                 except Exception as evar:
                     self.cdl_error("S1124 $1: plugin function failed: \'get_through_entry_port_name\'", plugin_name)
                     print_exception(evar)
@@ -690,7 +713,7 @@ class Join(BDNode, PluginModule):
                 if next_cell is None:
                     # p "next_cell_path: #{next_cell_nsp.get_path_str}"
                     self.cdl_error("S1125 $1: not generated cell \'$2\'",
-                                   self.through_generated_list[i + 1].__class__.__name__,
+                                   next_plugin.__class__.__name__,
                                    next_cell_nsp.get_path_str())
                     return
 
@@ -735,23 +758,23 @@ class Join(BDNode, PluginModule):
                         plugin_name, i, prev_region, next_cell, next_port_name, next_port_subscript, plClass)
             else:
                 # 見つかったものを共用する
-                self.through_generated_list[i] = rp
+                _ruby_aset(self.through_generated_list, i, rp)
 
             if cp_len <= i and i < (cp_len + rgn_len):
                 # @through_generated_list のうち @region_through_listに対応する部分
-                self.region_through_generated_list[i - cp_len] = self.through_generated_list[i]
+                _ruby_aset(self.region_through_generated_list, i - cp_len, _ruby_at(self.through_generated_list, i))
                 if rp is None:
                     # 生成したものを region(@through_list[i][3]) のリストに追加
                     # @through_list[i][3].add_cell_port_through_plugin( @cell_name, @port_name, @through_generated_list[i] ) #762
                     self.through_list[i][3].add_cell_port_through_plugin(
                         self.cell.get_global_name(), self.port_name, self.rhs_subscript,
-                        self.through_generated_list[i])
+                        _ruby_at(self.through_generated_list, i))
 
             if i == 0:
                 # 最も呼び口側のセルは、CDL 上の結合がないため、参照されたことにならない
-                if self.through_generated_list[0] is None:
+                if _ruby_at(self.through_generated_list, 0) is None:
                     return  # plugin_object の生成に失敗している
-                cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+                cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
                 if type(cell) is Cell:
                     cell.set_f_ref()
 
@@ -774,15 +797,16 @@ class Join(BDNode, PluginModule):
         generating_cell_name = Sym("{}_{}".format(through[1], self.get_through_count(through[1])))
         plugin_arg = through[2]
         Join.start_region = prev_region
-        if through[3]:
+        # Ruby: through[3] は cp_through では nil（配列長3）。範囲外は nil。
+        if _ruby_at(through, 3):
             # region 間の through の場合
             # @@start_region      = through[ 3 ]
             if next_cell.get_region() is Join.start_region:
                 Join.end_region = Join.start_region
             else:
-                Join.end_region = through[4]
-            Join.through_type = through[5]
-            Join.region_count = through[6]
+                Join.end_region = _ruby_at(through, 4)
+            Join.through_type = _ruby_at(through, 5)
+            Join.region_count = _ruby_at(through, 6)
         else:
             # 呼び口の through の場合
             # @@start_region      = @owner.get_region    # 呼び口側セルの region
@@ -807,6 +831,9 @@ class Join(BDNode, PluginModule):
             print_exception(evar)
             return
 
+        # Ruby の Array#[]= は自動拡張する
+        while len(self.through_generated_list) <= i:
+            self.through_generated_list.append(None)
         self.through_generated_list[i] = plugin_object
 
         # Region に関する情報を設定
@@ -854,12 +881,12 @@ class Join(BDNode, PluginModule):
         from tecslib.core.componentobj.namespace import Namespace
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
-            if self.through_generated_list[0]:
-                cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+            if _ruby_at(self.through_generated_list, 0):
+                cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
                 # cell が nil になるのはプラグインの get_cell_namespace_path が正しくないか、
                 # プラグイン生成コードがエラーになっている。
                 # できの悪いプラグインが多ければ、cell == nil をはじいた方がよい。
-                return cell.get_real_cell(self.through_generated_list[0].get_through_entry_port_name())
+                return cell.get_real_cell(_ruby_at(self.through_generated_list, 0).get_through_entry_port_name())
             else:
                 return None            # generate に失敗している
         elif self.cell:
@@ -877,8 +904,8 @@ class Join(BDNode, PluginModule):
         from tecslib.core.componentobj.namespace import Namespace
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
-            if self.through_generated_list[0]:
-                cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+            if _ruby_at(self.through_generated_list, 0):
+                cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
             else:
                 cell = self.cell            # generate に失敗している
         else:
@@ -902,8 +929,8 @@ class Join(BDNode, PluginModule):
         from tecslib.core.componentobj.namespace import Namespace
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
-            if self.through_generated_list[0]:
-                cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+            if _ruby_at(self.through_generated_list, 0):
+                cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
                 if cell:
                     return cell.get_region()
             else:
@@ -936,11 +963,11 @@ class Join(BDNode, PluginModule):
 
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
-            cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+            cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
 
             # through で挿入されたセルで、実際に接続されるセル（compositeの場合内部の)の受け口の C 言語名前
             return cell.get_real_global_port_name(
-                self.through_generated_list[0].get_through_entry_port_name())
+                _ruby_at(self.through_generated_list, 0).get_through_entry_port_name())
         else:
 
             # 実際に接続されるセルの受け口の C 言語名前
@@ -973,9 +1000,9 @@ class Join(BDNode, PluginModule):
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
             # through で生成されたセルを探す
-            cell = Namespace.find(self.through_generated_list[0].get_cell_namespace_path())    #1
+            cell = Namespace.find(_ruby_at(self.through_generated_list, 0).get_cell_namespace_path())    #1
             # cell のプラグインで生成されたポート名のポートを探す (composite なら内部の繋がるポート)
-            return cell.get_real_port(self.through_generated_list[0].get_through_entry_port_name())
+            return cell.get_real_port(_ruby_at(self.through_generated_list, 0).get_through_entry_port_name())
         else:
             # ポートを返す(composite なら内部の繋がるポートを返す)
             return self.cell.get_real_port(self.port_name)
@@ -986,7 +1013,7 @@ class Join(BDNode, PluginModule):
     #    このメソッドは get_rhs_cell,  と対になっている
     def get_rhs_subscript(self):
         if len(self.through_list) > 0 and self.through_list[0]:
-            return self.through_generated_list[0].get_through_entry_port_subscript()
+            return _ruby_at(self.through_generated_list, 0).get_through_entry_port_subscript()
         else:
             return self.rhs_subscript
 
@@ -996,8 +1023,8 @@ class Join(BDNode, PluginModule):
     def get_rhs_port2(self):
         # through 指定あり？
         if len(self.through_list) > 0 and self.through_list[0]:
-            if self.through_generated_list[0]:
-                port = Sym(str(self.through_generated_list[0].get_through_entry_port_name()))
+            if _ruby_at(self.through_generated_list, 0):
+                port = Sym(str(_ruby_at(self.through_generated_list, 0).get_through_entry_port_name()))
             else:
                 port = self.port_name    # generate に失敗している
         else:
@@ -1256,7 +1283,7 @@ class Join(BDNode, PluginModule):
             for t in self.through_list:
                 print("  " * (indent + 2), end="")
                 print("through: plugin name :  '{}' arg : '{}'".format(t[0], t[2]))
-                if self.through_generated_list[i]:
+                if _ruby_at(self.through_generated_list, i):
                     self.through_generated_list[i].show_tree(indent + 3)
                 i += 1
         if self.array_member2:

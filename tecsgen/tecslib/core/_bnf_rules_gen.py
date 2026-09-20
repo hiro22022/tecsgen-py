@@ -4,6 +4,34 @@
 
 import re
 
+def _json_to_sym(v):
+    """JSON_string は str、Token の場合は to_sym。Ruby の String#to_sym 相当。"""
+    if hasattr(v, "to_sym"):
+        return v.to_sym()
+    from tecslib.rubylib.symbol import Sym
+    return Sym(str(v))
+
+
+def _json_token_num(tok):
+    """JSON_number 用: Token.val が int/float または to_i/to_f 持ちオブジェクト."""
+    v = tok.val if hasattr(tok, "val") else tok
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return v
+    if hasattr(v, "to_i"):
+        return v.to_i()
+    return int(v)
+
+
+def _json_token_float(tok):
+    v = tok.val if hasattr(tok, "val") else tok
+    if isinstance(v, (int, float)):
+        return float(v)
+    if hasattr(v, "to_f"):
+        return v.to_f()
+    return float(v)
+
 def p_empty(p):
     'empty :'
     pass
@@ -1344,7 +1372,7 @@ def p_port_3(p):
 
 def p_port_4(p):
     '''port : port_type namespace_signature_name port_name "<=" namespace_identifier "." IDENTIFIER ";"'''
-    p[0] = Port( p[3].val, p[2], p[1], None, p[5], val[ 6 ].val )
+    p[0] = Port( p[3].val, p[2], p[1], None, p[5], p[7].val )
 
 def p_port_type_1(p):
     '''port_type : CALL'''
@@ -1639,7 +1667,7 @@ def p_specified_composite_celltype_statement_2(p):
 
 
 
-        p[4].set_specifier( Generator.get_statement_specifier )
+        p[4].set_specifier( Generator.get_statement_specifier() )
         CompositeCelltype.new_port( p[4] )
     elif isinstance(p[4], Cell):
 
@@ -1897,7 +1925,7 @@ def p_spec_R(p):
 
 def p_tool_info(p):
     '''tool_info : TOOL_INFO "(" "JSON_string" ")" "JSON_object"'''
-    TOOL_INFO( p[3].to_sym(), p[5] )
+    TOOL_INFO( _json_to_sym(p[3]), p[5] )
 
 def p_JSON_object(p):
     '''JSON_object : "{" "JSON_property_list" "}"'''
@@ -1905,15 +1933,18 @@ def p_JSON_object(p):
 
 def p_JSON_property_list_1(p):
     '''JSON_property_list : "JSON_string" ":" "JSON_value"'''
-    p[0] = {(p[1].to_sym()): (p[3])}
+    p[0] = {_json_to_sym(p[1]): (p[3])}
 
 def p_JSON_property_list_2(p):
     '''JSON_property_list : "JSON_property_list" "," "JSON_string" ":" "JSON_value"'''
-    p[1][ p[3].to_sym() ] = p[5]
+    p[1][ _json_to_sym(p[3]) ] = p[5]
+    p[0] = p[1]
 
 def p_JSON_value_1(p):
     '''JSON_value : "JSON_string"'''
-    p[0] = p[1]
+    p[0] = p[1] if isinstance(p[1], str) else (
+        p[1].val if hasattr(p[1], "val") and isinstance(p[1].val, str) else str(p[1])
+    )
 
 def p_JSON_value_2(p):
     '''JSON_value : "JSON_number"'''
@@ -1958,27 +1989,27 @@ def p_JSON_string(p):
 
 def p_JSON_number_1(p):
     '''JSON_number : INTEGER_CONSTANT'''
-    p[0] = p[1].val.to_i()
+    p[0] = _json_token_num(p[1])
 
 def p_JSON_number_2(p):
     '''JSON_number : FLOATING_CONSTANT'''
-    p[0] = p[1].val.to_f()
+    p[0] = _json_token_float(p[1])
 
 def p_JSON_number_3(p):
     '''JSON_number : "-" INTEGER_CONSTANT'''
-    p[0] = - p[1].val.to_i()
+    p[0] = - _json_token_num(p[1])
 
 def p_JSON_number_4(p):
     '''JSON_number : "-" FLOATING_CONSTANT'''
-    p[0] = - p[1].val.to_f()
+    p[0] = - _json_token_float(p[1])
 
 def p_JSON_number_5(p):
     '''JSON_number : "+" INTEGER_CONSTANT'''
-    p[0] = p[1].val.to_i()
+    p[0] = _json_token_num(p[1])
 
 def p_JSON_number_6(p):
     '''JSON_number : "+" FLOATING_CONSTANT'''
-    p[0] = p[1].val.to_f()
+    p[0] = _json_token_float(p[1])
 
 def p_error(p):
     pass

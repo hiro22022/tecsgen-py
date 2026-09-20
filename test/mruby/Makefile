@@ -1,20 +1,33 @@
-TECSGEN_EXE=tecsgen
+TECSGEN_EXE ?= tecsgen
+TECSPATH ?= $(abspath ../../tecsgen/tecs)
+
+# ASP / ASP3 依存はパスがあるときだけ実行
+HAS_ASP := $(shell test -d ../../../../../asp/asp+tecs/asp+tecs && echo yes)
+HAS_ASP3 := $(shell test -d ../../../../../asp3/asp3-3.1.0 && echo yes)
 
 total :
-	cd MrubyBridge-ASP ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-ASP3 ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-SimpleSample ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-TECSInfo ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-TECSInfoCompo ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-region ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyBridge-test ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd mrubycellplugin ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyInfoBridge-SimpleSample ; make allall TECSGEN=$(TECSGEN_EXE)
-	cd MrubyInfoBridge-test ; make allall TECSGEN=$(TECSGEN_EXE)
+ifeq ($(HAS_ASP),yes)
+	cd MrubyBridge-ASP ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+else
+	@echo "SKIP MrubyBridge-ASP (ASP package not found)"
+endif
+ifeq ($(HAS_ASP3),yes)
+	cd MrubyBridge-ASP3 ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+else
+	@echo "SKIP MrubyBridge-ASP3 (ASP3 package not found)"
+endif
+	cd MrubyBridge-SimpleSample ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyBridge-TECSInfo ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyBridge-TECSInfoCompo ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyBridge-region ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyBridge-test ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd mrubycellplugin ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyInfoBridge-SimpleSample ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
+	cd MrubyInfoBridge-test ; make allall TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(TECSPATH)
 
 clean:
-	cd MrubyBridge-ASP ; make clean
-	cd MrubyBridge-ASP3 ; make clean
+	-cd MrubyBridge-ASP ; make clean
+	-cd MrubyBridge-ASP3 ; make clean
 	cd MrubyBridge-SimpleSample ; make clean
 	cd MrubyBridge-TECSInfo ; make clean
 	cd MrubyBridge-TECSInfoCompo ; make clean
@@ -25,25 +38,21 @@ clean:
 	cd MrubyInfoBridge-test ; make clean
 
 test_exec :
-	@echo ===== MrubyBridge-ASP =====
-	@./MrubyBridge-ASP/MrubyBridge-ASP.exe ./MrubyBridge-ASP/test.rb
-	@echo ===== MrubyBridge-ASP3 =====
-	@./MrubyBridge-ASP3/MrubyBridge-ASP.exe ./MrubyBridge-ASP3/test.rb
-	@echo ===== MrubyBridge-region =====
-	@./MrubyBridge-region/SimpleSample.exe ./MrubyBridge-region/SimpleSample.rb
 	@echo ===== MrubyBridge-SimpleSample =====
-	@./MrubyBridge-SimpleSample/SimpleSample.exe ./MrubyBridge-SimpleSample/SimpleSample.rb
+	@cd MrubyBridge-SimpleSample && ./SimpleSample.exe ./SimpleSample.rb
+	@echo ===== MrubyBridge-region =====
+	@cd MrubyBridge-region && ./SimpleSample.exe ./SimpleSample.rb
 	@echo ===== MrubyBridge-test =====
-	@./MrubyBridge-test/test.exe ./MrubyBridge-test/test.rb
+	@cd MrubyBridge-test && ./test.exe ./test.rb
 	@echo ===== MrubyBridge-test 2 =====
-	@./MrubyBridge-test/test.exe  ./MrubyBridge-test/test2.rb
+	@cd MrubyBridge-test && ./test.exe ./test2.rb
 	@echo ===== MrubyBridge-TECSInfo =====
-	@./MrubyBridge-TECSInfo/SimpleSample.exe ./MrubyBridge-TECSInfo/SimpleSample.rb
+	@cd MrubyBridge-TECSInfo && ./SimpleSample.exe ./SimpleSample.rb
 	@echo ===== MrubyBridge-TECSInfoCompo =====
-	@./MrubyBridge-TECSInfoCompo/SimpleSample.exe ./MrubyBridge-TECSInfoCompo/SimpleSample.rb
+	@cd MrubyBridge-TECSInfoCompo && ./SimpleSample.exe ./SimpleSample.rb
 	@echo ===== mrubycellplugin =====
-	@./mrubycellplugin/mrubycellplugin.exe ./mrubycellplugin/script.rb
+	@cd mrubycellplugin && ./mrubycellplugin.exe ./script.rb
 	@echo ===== MrubyInfoBridge-SimpleSample =====
-	@./MrubyInfoBridge-SimpleSample/SimpleSample.exe ./MrubyInfoBridge-SimpleSample/SimpleSample.rb
+	@cd MrubyInfoBridge-SimpleSample && ./SimpleSample.exe ./SimpleSample.rb
 	@echo ===== MrubyInfoBridge-test =====
-	@cd MrubyInfoBridge-test; ./test.exe
+	@cd MrubyInfoBridge-test && ./test.exe

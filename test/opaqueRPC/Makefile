@@ -27,6 +27,9 @@ TARGET = $(TARGET_BASE).exe
 
 #default TECS generator
 TECSGEN = tecsgen
+ifdef TECSGEN_EXE
+TECSGEN = $(TECSGEN_EXE)
+endif
 
 #Time Stamp
 TIMESTAMP = $(GEN_DIR)/tecsgen.timestamp
@@ -60,8 +63,8 @@ all :  sub_regions
 -include $(GEN_DIR)/Makefile.tecsgen
 
 sub_regions:$(TIMESTAMP)
-	cd rClient; make all
-	cd rServer; make all
+	cd rClient; make all TECSPATH=$(TECSPATH)
+	cd rServer; make all TECSPATH=$(TECSPATH)
 
 clean :
 	cd rClient; make clean

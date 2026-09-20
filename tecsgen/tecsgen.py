@@ -294,7 +294,8 @@ class TECSGEN:
         import tecslib.core.generate  # noqa: F401
         import tecslib.core.generate_celltype  # noqa: F401
         import tecslib.core.c_parser  # noqa: F401
-        # TODO: tool_info.py, tecsinfo.py, unjoin_plugin.py, plugin/* 本体
+        import tecslib.core.tecsinfo  # noqa: F401
+        # TODO: tool_info.py, unjoin_plugin.py, plugin/* 本体
 
         if G.unit_test:
             sys.exit(1)

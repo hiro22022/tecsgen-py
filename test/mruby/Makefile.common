@@ -3,8 +3,9 @@
 #MRUBYPATH = /home/hiro2/mruby/mruby-2.0.1
 #MRUBYPATH = ../../../../mruby/mruby-3.0.0
 #MRUBYPATH = ../../../../../../mruby/mruby-3.2.0
-MRUBYPATH = ../../../../../../mruby/mruby-3.4.0
-# MRUBYPATH = ../../../../../../mruby/mruby-4.0.0 # not yet applicable
+# Absolute path (relative ../../../../../../mruby from test/mruby resolves outside TECS_native)
+MRUBYPATH = /home/hiro22022/mruby/mruby-3.4.0
+# MRUBYPATH = /home/hiro22022/mruby/mruby-4.0.0 # not yet applicable
 MRUBYLDPATH = $(MRUBYPATH)/build/host/lib
 
 mruby:

@@ -694,7 +694,11 @@ class Celltype(NSBDNode, PluginModule, CelltypePluginModule):  # < Nestable
 
     #=== Celltype# SET_CB_INIB_POINTER, INITIALIZE_CB が必要か
     def need_CB_initializer(self):
-        return self.n_var_init > 0 or self.has_CB() or (self.n_call_port_dynamic and G.ram_initializer)
+        # Ruby: @n_var_init > 0 || has_CB? || ( @n_call_port_dynamic && $ram_initializer )
+        # Ruby では整数 0 が truthy のため、(@n_call_port_dynamic && $ram_initializer) は
+        # n_call_port_dynamic == 0 かつ $ram_initializer のときも真になる。
+        # Python の 0 は falsy なので、同じ結果になるよう ram_initializer を直接見る。
+        return self.n_var_init > 0 or self.has_CB() or bool(G.ram_initializer)
 
     #=== Celltype# 逆require の結合を生成する
     def create_reverse_require_join(self, cell):

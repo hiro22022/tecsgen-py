@@ -52,11 +52,7 @@ from tecslib.core.types import (  # noqa: E402
     VoidType,
 )
 
-# TOOL_INFO は未移植のためスタブ（tool_info 文法 action 用）
-class TOOL_INFO:
-    def __init__(self, name, obj):
-        pass
-
+from tecslib.core.tool_info import TOOL_INFO  # noqa: E402
 
 # 字句解析器が返す複数文字トークン → PLY 用終端名（引用リテラルは 1 文字のみ可のため）
 _LEXER_MULTI_TO_PLY = {

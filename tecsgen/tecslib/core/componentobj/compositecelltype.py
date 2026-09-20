@@ -134,7 +134,7 @@ class CompositeCelltype(NSBDNode, CelltypePluginModule, PluginModule):  # < Nest
         for c in self.cell_list_in_composite.get_items():
             ct = c.get_celltype()
             if ct:
-                c.create_reverse_join()
+                c.create_reverse_join_inst()
 
         # 意味解析
         for c in self.cell_list_in_composite.get_items():
@@ -167,7 +167,7 @@ class CompositeCelltype(NSBDNode, CelltypePluginModule, PluginModule):  # < Nest
             for a in cell.get_allocator_list():
                 # puts "allocator_list of #{cell.get_name} #{a[0]} #{a[1]}.#{a[2]}.#{a[3]}.#{a[4]} #{a[5].to_s}"
                 if cp_internal_name == Sym("{}_{}_{}".format(a[1], a[3], a[4])):
-                    dbgPrint("internal_allocator {cp_internal_name} {}_{}_{}\n".format(a[1], a[3], a[4]))
+                    dbgPrint("internal_allocator {{cp_internal_name}} {}_{}_{}\n".format(a[1], a[3], a[4]))
                     dbgPrint("internal_allocator: {}, {}.{}\n".format(
                         a[5], internal_alloc_name_from_port_def, internal_alloc_ep_name_from_port_def))
                     if to_s(a[5]) != "{}.{}".format(internal_alloc_name_from_port_def, internal_alloc_ep_name_from_port_def):

@@ -37,6 +37,23 @@ def _require_tecsgen_lib(fname, b_fatal=True):
         py_base = rb_base + ".py"
         plugin_class_name = rb_base
 
+    # lib/Foo.rb → モジュール名はスラッシュ不可
+    plugin_mod_suffix = plugin_class_name.replace("/", ".").replace("\\", ".")
+    plugin_attr_name = plugin_class_name.split("/")[-1].split("\\")[-1]
+
+    # パッケージ同梱プラグインは通常 import する（_dyn_ 再ロードだと
+    # issubclass 判定が別クラス扱いになり P2002 になる）
+    for cand in (
+        "tecslib.plugin." + plugin_mod_suffix,
+        "tecslib.plugin." + plugin_attr_name,
+    ):
+        try:
+            mod = importlib.import_module(cand)
+            if hasattr(mod, plugin_attr_name):
+                return True
+        except ImportError:
+            pass
+
     load_paths = list(G.library_path) + list(sys.path)
 
     for path in load_paths:
@@ -44,7 +61,14 @@ def _require_tecsgen_lib(fname, b_fatal=True):
             lib = os.path.normpath(os.path.join(os.path.expanduser(path), lp, py_base))
             if os.path.isfile(lib):
                 try:
-                    mod_name = "tecslib.plugin._dyn_{}".format(plugin_class_name)
+                    pkg_mod_name = "tecslib.plugin.{}".format(plugin_mod_suffix)
+                    if pkg_mod_name in sys.modules:
+                        b_require = True
+                        break
+                    mod_name = "tecslib.plugin._dyn_{}".format(plugin_attr_name)
+                    if mod_name in sys.modules and hasattr(sys.modules[mod_name], plugin_attr_name):
+                        b_require = True
+                        break
                     spec = importlib.util.spec_from_file_location(mod_name, lib)
                     if spec is None or spec.loader is None:
                         b_exception = True
@@ -62,9 +86,9 @@ def _require_tecsgen_lib(fname, b_fatal=True):
 
     if b_require is False and b_exception is False:
         for lp in ("", "tecslib/plugin/"):
-            rel = lp + py_base
+            rel = (lp + py_base).replace("/", ".").replace(".py", "")
             try:
-                importlib.import_module(rel.replace("/", ".").replace(".py", ""))
+                importlib.import_module(rel)
                 b_require = True
                 break
             except ImportError:
@@ -89,14 +113,21 @@ def _require_tecsgen_lib(fname, b_fatal=True):
 
 def _const_get(plugin_name):
     name = str(plugin_name)
-    mod_name = "tecslib.plugin._dyn_{}".format(name)
+    attr = name.split("/")[-1]
+    # 同梱プラグインを優先（_dyn_ と二重定義を避ける）
+    for cand in (
+        "tecslib.plugin." + name.replace("/", "."),
+        "tecslib.plugin." + attr,
+    ):
+        try:
+            mod = importlib.import_module(cand)
+            return getattr(mod, attr)
+        except (ImportError, AttributeError):
+            pass
+    mod_name = "tecslib.plugin._dyn_{}".format(attr)
     if mod_name in sys.modules:
-        return getattr(sys.modules[mod_name], name)
-    try:
-        mod = importlib.import_module("tecslib.plugin." + name)
-        return getattr(mod, name)
-    except ImportError as e:
-        raise ImportError("plugin は未対応: {} をロードできません".format(name)) from e
+        return getattr(sys.modules[mod_name], attr)
+    raise ImportError("plugin は未対応: {} をロードできません".format(name))
 
 
 def _const_defined(plugin_name):
@@ -170,6 +201,12 @@ class PluginModule:
                     return None
 
             plClass = _const_get(plugin_name)
+            if not isinstance(plClass, type):
+                self.cdl_error("P2003 $1: load failed", plugin_name)
+                return None
+            if superClass is None or not isinstance(superClass, type):
+                self.cdl_error("P2003 $1: load failed", plugin_name)
+                return None
             if issubclass(plClass, superClass):       # plClass inherits superClass
                 return plClass
             else:
@@ -180,6 +217,10 @@ class PluginModule:
                     dbgPrint("pluginClass={}\n".format(plugin_object))
                     if plugin_object is None:
                         self.cdl_error("P9999 '$1': MultiPlugin not support '$2'", plugin_name, superClass.__name__)
+                        return None
+                    if not isinstance(plugin_object, type):
+                        self.cdl_error("P2003 $1: load failed", plugin_name)
+                        return None
                     PluginModule.loaded_plugin_list[sym] = PluginModule._MULTI_PLUGIN_MARKER
                     return plugin_object
                 else:
@@ -242,7 +283,19 @@ class PluginModule:
     # tmp_plugin_post_code.cdl への出力
     @classmethod
     def gen_plugin_post_code(cls):
-        pass
+        dbgPrint("------------  gen_plugin_post_code  -------------\n")
+        dbgPrint("PluginModule {}\n".format(PluginModule.loaded_plugin_list))
+        sorted_plugin_list = cls.sort_and_load(list(PluginModule.loaded_plugin_list.keys()))
+        new_plugin_list = []
+        for plugin_name, count in PluginModule.loaded_plugin_list.items():
+            b_found = False
+            for plugin in sorted_plugin_list:
+                if _to_sym(plugin.__name__) == _to_sym(plugin_name):
+                    b_found = True
+                    break
+            if not b_found:
+                new_plugin_list.append(plugin_name)
+        cls.sort_and_load(new_plugin_list)
 
     @classmethod
     def sort_and_load(cls, plugin_list):
@@ -254,7 +307,9 @@ class PluginModule:
             if not _const_defined(plugin_name):    # undefined PluginModule
                 continue
             plClass = _const_get(plugin_name)
-            if hasattr(plClass, "get_post_code_priority"):
+            # Ruby: plClass.respond_to?(:get_post_code_priority) — クラス固有の無引数版
+            # （例: TECSInfoPlugin）。無い場合は PluginModule.get_post_code_priority(plClass)。
+            if "get_post_code_priority" in plClass.__dict__:
                 prio = plClass.get_post_code_priority()
             else:
                 prio = cls.get_post_code_priority(plClass)
@@ -307,8 +362,6 @@ class PluginModule:
         CelltypePlugin = _import_plugin_class("CelltypePlugin")
         CellPlugin = _import_plugin_class("CellPlugin")
         SignaturePlugin = _import_plugin_class("SignaturePlugin")
-        if MultiPlugin is None:
-            raise ImportError("plugin は未対応: プラグイン基底クラスがロードできません")
         if MultiPlugin is not None and issubclass(plClass, MultiPlugin):
             return cls.MULTI_PLUGIN_POST_CODE_PRIORITY
         elif DomainPlugin is not None and issubclass(plClass, DomainPlugin):
@@ -326,4 +379,4 @@ class PluginModule:
         elif SignaturePlugin is not None and issubclass(plClass, SignaturePlugin):
             return cls.SIGNATURE_PLUGIN_POST_CODE_PRIORITY
         else:
-            raise "Unknown Plugin type '{}'".format(cls.__name__)
+            raise Exception("Unknown Plugin type '{}'".format(plClass.__name__))

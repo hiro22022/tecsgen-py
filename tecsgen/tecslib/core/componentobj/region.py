@@ -483,12 +483,15 @@ class Region(Namespace):
                 dist += 1
 
             # 兄弟レベルにおいて（to_through をチェックおよび挿入）
-            if f1[sibling_level] and f2[sibling_level]:
+            # Ruby の Array#[] は範囲外で nil
+            f1_sib = f1[sibling_level] if sibling_level < len(f1) else None
+            f2_sib = f2[sibling_level] if sibling_level < len(f2) else None
+            if f1_sib and f2_sib:
                 dbgPrint("going from {} to {}\n".format(
-                    f1[sibling_level].get_name(), f2[sibling_level].get_name()))
+                    f1_sib.get_name(), f2_sib.get_name()))
                 # print "DOMAIN: going from #{f1[sibling_level].get_name} to #{f2[sibling_level].get_name}\n"
-                domain_type = f1[sibling_level].get_domain_type()
-                class_type = f1[sibling_level].get_class_type()
+                domain_type = f1_sib.get_domain_type()
+                class_type = f1_sib.get_class_type()
                 join_ok = False
                 if domain_type:
                     if not domain_type.joinable(f1[i], f1[i - 1], Sym("TO_THROUGH")):
@@ -500,11 +503,11 @@ class Region(Namespace):
                     join_ok = True
                 if not join_ok:
                     found = 0
-                    for t in f1[sibling_level].get_to_through_list():
-                        if t[0][0] == f2[sibling_level].get_name():   # region 名が一致するか ?
+                    for t in f1_sib.get_to_through_list():
+                        if t[0][0] == f2_sib.get_name():   # region 名が一致するか ?
                             found = 1
-                    for t in f2[sibling_level].get_from_through_list():
-                        if t[0][0] == f1[sibling_level].get_name():   # region 名が一致するか ?
+                    for t in f2_sib.get_from_through_list():
+                        if t[0][0] == f1_sib.get_name():   # region 名が一致するか ?
                             found = 1
                     if found == 0:
                         return None

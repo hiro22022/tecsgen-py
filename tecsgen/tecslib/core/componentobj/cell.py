@@ -235,7 +235,7 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
                     self.celltype.get_internal_allocator_list():
                 nsp = NamespacePath(self.name, False)
                 rhs = Expression(["OP_DOT", ["IDENTIFIER", nsp],
-                                  Token(str(ext_alloc_ent), None, None, None)])  #1 構文解析段階なので locale 不要
+                                  Token(Sym(str(ext_alloc_ent)), None, None, None)])  #1 構文解析段階なので locale 不要
 
                 self.alloc_list.append(["NORMAL_ALLOC", port_name, None, fd_name, par_name, rhs])
 # print "add alloc_list: #{port_name}.#{fd_name}.#{par_name}=#{rhs.to_s}\n"
@@ -627,7 +627,12 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
     def cell_plugin(self):
         plugin_name = self._generate[0]
         option = self._generate[1]
-        self._generate[2] = self.apply_plugin(plugin_name, option)
+        plugin_object = self.apply_plugin(plugin_name, option)
+        # Ruby の Array#[]= は長さを超えて代入できる
+        if len(self._generate) <= 2:
+            self._generate.append(plugin_object)
+        else:
+            self._generate[2] = plugin_object
 
     def apply_plugin(self, plugin_name, option):
         from tecslib.core.plugin_module import _import_plugin_class
@@ -638,11 +643,14 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
             self.cdl_error("S9999 plugin cannot apply to prototype cell '$1'", self.name)
 
         plClass = self.load_plugin(plugin_name, CellPlugin)
+        if plClass is None:
+            return None
         # return if plClass == nil # 従来と仕様が変わるので、継続する
         if G.verbose:
             print("new cell plugin: plugin_object = {}.new( {}, {} )\n".format(
                 plClass.__name__, self.name, option))
 
+        plugin_object = None
         try:
             plugin_object = plClass(self, option)
             plugin_object.set_locale(self.locale)
@@ -716,7 +724,9 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
         self.f_cloned = True
 
         # Namespace.new_cell( self )  # mikan namespace 対応
-        region.new_cell(self)  # mikan  namespace に cell を置けないことを仮定
+        # Ruby はインスタンスメソッド region.new_cell。classmethod 経由だと
+        # カレント namespace (展開時は root) に登録され region 内で重複する。
+        region.new_cell_inst(self)  # mikan  namespace に cell を置けないことを仮定
 
         # join_list : NamedList の clone を作る
         if self.celltype:
@@ -964,7 +974,8 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
 
             if cj:  # 既にエラー
                 # composite の内部のセルに対し再帰的に get_real_port を適用
-                cell = self.cell_list["{}".format(cj.get_cell_name())]
+                # Ruby Hash#[] は欠落時 nil。Python は KeyError になるため get を使う
+                cell = self.cell_list.get("{}".format(cj.get_cell_name()))
                 if cell and cell.get_celltype():
                     cell.port_referenced(cell.get_celltype().find(cj.get_cell_elem_name()))
 
@@ -1011,7 +1022,7 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
         list = []
         for cell in self.cell_list2:
             list.append(cell)
-            list += cell.get_cell_list2()
+            list += cell.get_cell_list2_inst()
         return list
 
     #=== Cell# 受け口配列の添数の最大値を設定
@@ -1159,7 +1170,7 @@ class Cell(NSBDNode, PluginModule):  # < Nestable
     def make_cell_list2(cls):
         for c in cls.cell_list:
             cls.cell_list2.append(c)
-            cls.cell_list2 += c.get_cell_list2()
+            cls.cell_list2 += c.get_cell_list2_inst()
 
     #=== Cell# @@cell_list2 を得る
     # composite 内を含む (compositeも含む)

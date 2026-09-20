@@ -15,9 +15,25 @@ __pycache__/
 *.o
 *.exe
 *.stackdump
-
+tecsgen.timestamp
+tecsgen.timestamp.*
+tecs.timestamp*
 # テスト実行の生成物
 test/**/gen/
+test/**/gen.RAM/
+test/**/gen.RAMONLY
+test/**/gen.ROM*/
+test/**/gen-ramonly/
+test/**/gen-raminitializer/
+test/**/gen_rec_comp*/
+test/**/gen.rb/
+test/**/gen-r/
+test/**/gen-ram-initializer/
+test/**/gen-?/
+test/**/gen-array*/
+test/**/gen-single*/
+test/**/gen2/
+test/merge/src/*.c_*
 test/result*.txt
 test/coverage/
 test/coverage.data

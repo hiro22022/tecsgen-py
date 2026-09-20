@@ -288,10 +288,11 @@ class CFile:
 
     def __init__(self, path, mode):
         from tecslib.core import globals as G
-        # Ruby の "w:ASCII-8BIT" 相当 → Python は encoding= で開く
+        # Ruby の "w:ASCII-8BIT" はバイナリ相当で UTF-8 文字列のバイト列をそのまま書く。
+        # Python の latin-1 は U+0100 以上を拒否するため、ASCII-8BIT は utf-8 にマップする。
         enc = G.Ruby19_File_Encode
         if enc in ("ASCII-8BIT", "BINARY", "binary"):
-            enc = "latin-1"
+            enc = "utf-8"
         self.file = open(path, mode, encoding=enc)
 
     def print(self, str):

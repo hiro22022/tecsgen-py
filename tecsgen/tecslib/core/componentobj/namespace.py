@@ -18,12 +18,13 @@ class _NamespaceGetGlobalName:
     def __get__(self, obj, owner):
         if obj is None:
             def class_get():
-                if owner.namespace_sp <= 0:
+                # Ruby の @@ と同様、サブクラス経由でも Namespace 本体のクラス変数を使う
+                if Namespace.namespace_sp <= 0:
                     return ""
-                path = str(owner.namespace_stack[1].get_name())
+                path = str(Namespace.namespace_stack[1].get_name())
                 i = 2
-                while i <= owner.namespace_sp:
-                    path = path + "_" + str(owner.namespace_stack[i].get_name())
+                while i <= Namespace.namespace_sp:
+                    path = path + "_" + str(Namespace.namespace_stack[i].get_name())
                     i += 1
                 return path
             return class_get
@@ -68,25 +69,29 @@ class Namespace(NSBDNode):
     get_global_name = _NamespaceGetGlobalName()
 
     # Generator ネスト用スタックの push, pop (クラスメソッド)
+    # Ruby の @@ クラス変数は継承階層で共有される。Python では cls.x = すると
+    # Region.push() 経由で Region にシャドウが作られるため、常に Namespace. を使う。
     @classmethod
     def push(cls):
         dbgPrint("push Namespace\n")
-        cls.nest_stack_index += 1
-        if cls.nest_stack_index >= len(cls.nest_stack):
-            cls.nest_stack.append(None)
-        cls.nest_stack[cls.nest_stack_index] = [cls.namespace_stack, cls.namespace_sp]
-        if cls.root_namespace:
-            cls.namespace_sp = 0
-            if cls.namespace_sp >= len(cls.namespace_stack):
-                cls.namespace_stack.append(None)
-            cls.namespace_stack[cls.namespace_sp] = cls.root_namespace
+        Namespace.nest_stack_index += 1
+        if Namespace.nest_stack_index >= len(Namespace.nest_stack):
+            Namespace.nest_stack.append(None)
+        Namespace.nest_stack[Namespace.nest_stack_index] = [
+            Namespace.namespace_stack, Namespace.namespace_sp]
+        if Namespace.root_namespace:
+            Namespace.namespace_sp = 0
+            if Namespace.namespace_sp >= len(Namespace.namespace_stack):
+                Namespace.namespace_stack.append(None)
+            Namespace.namespace_stack[Namespace.namespace_sp] = Namespace.root_namespace
 
     @classmethod
     def pop(cls):
         dbgPrint("pop Namespace\n")
-        cls.namespace_stack, cls.namespace_sp = cls.nest_stack[cls.nest_stack_index]
-        cls.nest_stack_index -= 1
-        if cls.nest_stack_index < -1:
+        Namespace.namespace_stack, Namespace.namespace_sp = (
+            Namespace.nest_stack[Namespace.nest_stack_index])
+        Namespace.nest_stack_index -= 1
+        if Namespace.nest_stack_index < -1:
             raise Exception("TooManyRestore")
 
     # namespace 階層用スタックの push, pop (インスタンスメソッド)
@@ -134,7 +139,9 @@ class Namespace(NSBDNode):
         dbgPrint("Namespace: initialize name={} sp={}\n".format(name, Namespace.namespace_sp))
         if Namespace.namespace_sp >= 0:   # root は除外
             dbgPrint("Namespace: initialize2 name={} sp={}\n".format(name, Namespace.namespace_sp))
-            Namespace.namespace_stack[Namespace.namespace_sp].new_namespace(self)
+            # Ruby はインスタンスメソッド new_namespace を呼ぶ。classmethod 経由だと
+            # Region インスタンスから呼ばれたとき cls=Region になり得るため直接呼ぶ。
+            Namespace.namespace_stack[Namespace.namespace_sp].new_namespace_inst(self)
         self.push_inst()
 
         self.global_name = Namespace.get_global_name()    # stack 登録後取る
@@ -222,11 +229,11 @@ class Namespace(NSBDNode):
             if name == "::":
                 i = 1
                 name = path[i]   # 構文的に必ず存在
-                object = cls.root_namespace.find_inst(name)  # root
+                object = Namespace.root_namespace.find_inst(name)  # root
             else:
                 # 相対パス
                 i = 0
-                object = cls.namespace_stack[cls.namespace_sp].find_one_inst(name) # crrent
+                object = Namespace.namespace_stack[Namespace.namespace_sp].find_one_inst(name) # crrent
 
         else:
             from tecslib.core.componentobj.namespacepath import NamespacePath
@@ -237,14 +244,14 @@ class Namespace(NSBDNode):
 
             if length == 0:
                 if in_path.is_absolute():
-                    return cls.root_namespace
+                    return Namespace.root_namespace
                 else:
                     raise Exception("path length 0, not absolute")
 
             i = 0
             name = path[0]
             if in_path.is_absolute():
-                object = cls.root_namespace.find_inst(name)  # root
+                object = Namespace.root_namespace.find_inst(name)  # root
             else:
                 bns = in_path.get_base_namespace()
                 object = bns.find_one_inst(name)           # crrent
@@ -271,7 +278,7 @@ class Namespace(NSBDNode):
     #=== Namespace# namespace から探す。見つからなければ親 namespace から探す
     @classmethod
     def find_one(cls, name):
-        return cls.namespace_stack[cls.namespace_sp].find_one_inst(name)
+        return Namespace.namespace_stack[Namespace.namespace_sp].find_one_inst(name)
 
     def find_one_inst(self, name):
 
@@ -288,16 +295,16 @@ class Namespace(NSBDNode):
 
     @classmethod
     def get_current(cls):
-        return cls.namespace_stack[cls.namespace_sp]
+        return Namespace.namespace_stack[Namespace.namespace_sp]
 
     @classmethod
     def find_tag(cls, name):
         # mikan tag : namespace の path に対応しない
         # namespace の中にあっても、root namespace にあるものと見なされる
         # よって カレント namespace から根に向かって探す
-        i = cls.namespace_sp
+        i = Namespace.namespace_sp
         while i >= 0:
-            res = cls.namespace_stack[i].find_tag_inst(name)
+            res = Namespace.namespace_stack[i].find_tag_inst(name)
             if res:
                 return res
             i -= 1
@@ -308,7 +315,7 @@ class Namespace(NSBDNode):
  ### namespace
     @classmethod
     def new_namespace(cls, namespace):
-        cls.namespace_stack[cls.namespace_sp].new_namespace_inst(namespace)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_namespace_inst(namespace)
 
     def new_namespace_inst(self, namespace):
         dbgPrint("new_namespace: {}:{} {}:{} \n".format(
@@ -321,7 +328,7 @@ class Namespace(NSBDNode):
  ### signature
     @classmethod
     def new_signature(cls, signature):
-        cls.namespace_stack[cls.namespace_sp].new_signature_inst(signature)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_signature_inst(signature)
 
     def new_signature_inst(self, signature):
         signature.set_owner(self)   # Signature (Namespace)
@@ -331,7 +338,7 @@ class Namespace(NSBDNode):
  ### celltype
     @classmethod
     def new_celltype(cls, celltype):
-        cls.namespace_stack[cls.namespace_sp].new_celltype_inst(celltype)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_celltype_inst(celltype)
 
     def new_celltype_inst(self, celltype):
         celltype.set_owner(self)   # Celltype (Namespace)
@@ -341,7 +348,7 @@ class Namespace(NSBDNode):
  ### compositecelltype
     @classmethod
     def new_compositecelltype(cls, compositecelltype):
-        cls.namespace_stack[cls.namespace_sp].new_compositecelltype_inst(compositecelltype)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_compositecelltype_inst(compositecelltype)
 
     def new_compositecelltype_inst(self, compositecelltype):
         compositecelltype.set_owner(self)   # CompositeCelltype (Namespace)
@@ -351,7 +358,7 @@ class Namespace(NSBDNode):
  ### cell (Namespace)
     @classmethod
     def new_cell(cls, cell):
-        cls.namespace_stack[cls.namespace_sp].new_cell_inst(cell)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_cell_inst(cell)
 
     def new_cell_inst(self, cell):
         dbgPrint("Namespace.new_cell: {}::{}\n".format(
@@ -397,7 +404,7 @@ class Namespace(NSBDNode):
  ### struct
     @classmethod
     def new_structtype(cls, struct):
-        cls.namespace_stack[cls.namespace_sp].new_structtype_inst(struct)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_structtype_inst(struct)
 
     def new_structtype_inst(self, struct):
         # struct.set_owner self   # StructType (Namespace) # StructType は BDNode ではない
@@ -414,7 +421,7 @@ class Namespace(NSBDNode):
  ### typedef
     @classmethod
     def new_typedef(cls, typedef):
-        cls.namespace_stack[cls.namespace_sp].new_typedef_inst(typedef)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_typedef_inst(typedef)
 
     def new_typedef_inst(self, typedef):
         typedef.set_owner(self)   # TypeDef (Namespace)
@@ -444,9 +451,9 @@ class Namespace(NSBDNode):
 
     @classmethod
     def is_typename(cls, str_):
-        i = cls.namespace_sp
+        i = Namespace.namespace_sp
         while i >= 0:
-            if cls.namespace_stack[i].is_typename_inst(str_):
+            if Namespace.namespace_stack[i].is_typename_inst(str_):
                 return True
             i -= 1
         return False
@@ -461,7 +468,7 @@ class Namespace(NSBDNode):
  ### const_decl
     @classmethod
     def new_const_decl(cls, decl):
-        cls.namespace_stack[cls.namespace_sp].new_const_decl_inst(decl)
+        Namespace.namespace_stack[Namespace.namespace_sp].new_const_decl_inst(decl)
 
     def new_const_decl_inst(self, decl):
         from tecslib.core.types import IntType, FloatType, BoolType, PtrType
@@ -544,7 +551,7 @@ class Namespace(NSBDNode):
     # ルートリージョンとルートネームスペースは同じオブジェクト
     @classmethod
     def get_root(cls):
-        return cls.root_namespace
+        return Namespace.root_namespace
 
     #== Namespace に属するシグニチャのリスト
     def get_signature_list(self):

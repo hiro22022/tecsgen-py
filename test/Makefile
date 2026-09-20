@@ -344,13 +344,13 @@ simple.1 :
 	cd simple ; make all
 
 opaqueRPC.1 :
-	cd opaqueRPC ; make tecs TECSGEN_EXE=$(TECSGEN_EXE)
-	cd opaqueRPC ; make all
+	cd opaqueRPC ; make tecs TECSGEN=$(TECSGEN_EXE) TECSPATH=$(abspath ../tecsgen/tecs)
+	cd opaqueRPC ; make all TECSPATH=$(abspath ../tecsgen/tecs)
 
 .PHONY:opaqueMarshaler
 opaqueMarshaler:
-	cd opaqueMarshaler ; make tecs TECSGEN_EXE=$(TECSGEN_EXE)
-	cd opaqueMarshaler ; make all
+	cd opaqueMarshaler ; make tecs TECSGEN=$(TECSGEN_EXE) TECSPATH=$(abspath ../tecsgen/tecs)
+	cd opaqueMarshaler ; make all TECSPATH=$(abspath ../tecsgen/tecs)
 
 optimize.1 :
 	cd optimize ; make tecs TECSGEN_EXE=$(TECSGEN_EXE)
@@ -414,8 +414,8 @@ sharedRPC.1 :
 	cd sharedRPC ; make all
 
 sharedOpaqueRPC.1 :
-	cd sharedOpaqueRPC ; make tecs TECSGEN_EXE=$(TECSGEN_EXE)
-	cd sharedOpaqueRPC ; make all
+	cd sharedOpaqueRPC ; make tecs TECSGEN_EXE=$(TECSGEN_EXE) TECSPATH=$(abspath ../tecsgen/tecs)
+	cd sharedOpaqueRPC ; make all TECSPATH=$(abspath ../tecsgen/tecs)
 
 dataqueue.1 :
 	cd dataqueue ; make tecs TECSGEN_EXE=$(TECSGEN_EXE)

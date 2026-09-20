@@ -84,11 +84,11 @@ class AppFile(object):
         else:
             real_name = name + ".tmp"
 
-        # Ruby File.open mode ":ASCII-8BIT" → encoding=latin-1
+        # Ruby File.open mode ":ASCII-8BIT" → バイナリ相当で UTF-8 バイトをそのまま出力
         if cls.file_name_list.get(name):
-            f = open(real_name, "a", encoding="latin-1")
+            f = open(real_name, "a", encoding="utf-8")
         else:
-            f = open(real_name, "w", encoding="latin-1")
+            f = open(real_name, "w", encoding="utf-8")
             cls.file_name_list[name] = True
         # File クラスのオブジェクトを返す
         return _AppFileIO(f)
@@ -101,9 +101,9 @@ class AppFile(object):
         for name, boo in list(cls.file_name_list.items()):
             b_identical = False
             if os.path.isfile(name) and os.access(name, os.R_OK):
-                with open(name, "r", encoding="latin-1") as oldf:
+                with open(name, "r", encoding="utf-8") as oldf:
                     old_lines = oldf.readlines()
-                with open(name + ".tmp", "r", encoding="latin-1") as newf:
+                with open(name + ".tmp", "r", encoding="utf-8") as newf:
                     new_lines = newf.readlines()
                 if len(old_lines) == len(new_lines):
                     i = 0
@@ -803,7 +803,9 @@ OTHER_OBJS ={objs_add}                      # Add objects out of tecs care.
                 continue
             if b_inline_only_or_proc is False and ct.is_all_entry_inline() and not ct.is_active():
                 continue
-            if callable(b_inline_only_or_proc) and b_inline_only_or_proc(ct) is False:
+            # Ruby: Proc が偽ならスキップ。0 も Python では偽なので not で判定する
+            # （need_CB_initializer は bool を返すが、他の Proc 互換のため）
+            if callable(b_inline_only_or_proc) and not b_inline_only_or_proc(ct):
                 continue
             if (b_plugin and ct.get_plugin()) or (not b_plugin and not ct.get_plugin()):
                 f.print(" {}{}{}".format(prepend, ct.get_global_name(), append))
@@ -950,7 +952,7 @@ class _SignatureGenerate:
         dl = self.get_descriptor_list()
         if len(dl) > 0:
             f.printf(TECSMsg.get("SDI_comment"), "#_SDI_#")
-            for dt, param in dl:
+            for dt, param in dl.items():
                 f.print(
                     "/* pre-typedef incomplete-type to avoid error in case of mutual or cyclic reference */\n"
                     "#ifndef Descriptor_of_{0}_Defined\n"

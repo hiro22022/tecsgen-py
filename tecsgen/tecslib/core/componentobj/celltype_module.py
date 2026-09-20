@@ -17,7 +17,12 @@ class CelltypePluginModule:
     def celltype_plugin(self):
         plugin_name = self._generate[0]
         option = self._generate[1]
-        self._generate[2] = self.apply_plugin(plugin_name, option)
+        plugin_object = self.apply_plugin(plugin_name, option)
+        # Ruby の Array#[]= は長さを超えて代入できる
+        if len(self._generate) <= 2:
+            self._generate.append(plugin_object)
+        else:
+            self._generate[2] = plugin_object
 
     #=== Celltype# セルタイププラグインをこのセルタイプに適用
     def apply_plugin(self, plugin_name, option):

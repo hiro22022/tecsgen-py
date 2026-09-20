@@ -767,13 +767,13 @@ class _CelltypeGenerate:
                 "{}_{}_refer_to_descriptor( {}{} )\n"
                 "{{\n"
                 "    Descriptor( {} )  des;\n"
-                "{}{}    /* cast is ncecessary for removing 'const'  */\n"
+                "{}    /* cast is ncecessary for removing 'const'  */\n"
                 "{}    des.vdes = (struct tag_{}_VDES *){}{}{};\n"
                 "    return des;\n"
                 "}}\n"
                 "\n".format(
                     p.get_name(), sig, self.global_name, p.get_name(), p_that, array,
-                    sig, p_cellcb, assert_, cb, p.get_name(), array2, sig))
+                    sig, p_cellcb, assert_, sig, cb, p.get_name(), array2))
 
     def gen_ph_set_desc_func(self, f):
         if self.n_call_port_dynamic > 0:
@@ -817,7 +817,7 @@ class _CelltypeGenerate:
                 "{}_{}_set_descriptor( {}{}Descriptor( {} ) des )\n"
                 "{{\n"
                 "{}    assert( des.vdes != NULL );\n"
-                "{}{}    {}{}{} = des.vdes;\n"
+                "{}    {}{}{} = des.vdes;\n"
                 "}}\n"
                 "\n".format(
                     p.get_name(), self.global_name, p.get_name(), p_that, array, sig,
@@ -832,7 +832,7 @@ class _CelltypeGenerate:
                     "Inline void\n"
                     "{}_{}_unjoin( {}{}{} )\n"
                     "{{\n"
-                    "{}    {}.{} = NULL;\n"
+                    "{}    {}{}{} = NULL;\n"
                     "}}\n"
                     "\n".format(
                         p.get_name(), self.global_name, p.get_name(),
@@ -860,8 +860,8 @@ class _CelltypeGenerate:
                 array2 = ""
             f.printf(
                 "#define %s_refer_to_descriptor(%s)\\\n"
-                "          %s_refer_to_descriptor( %s%s )\n",
-                p.get_name(), array, self.global_name, p.get_name(), array2)
+                "          %s_%s_refer_to_descriptor( %s%s )\n",
+                p.get_name(), array, self.global_name, p.get_name(), p_cellcb, array2)
             f.printf(
                 "#define %s_ref_desc(%s)\\\n"
                 "          %s_refer_to_descriptor(%s)\n",
@@ -892,12 +892,12 @@ class _CelltypeGenerate:
                 subsc3 = ""
             f.printf(
                 "#define %s_set_descriptor( %sdesc )\\\n"
-                "          %s_set_descriptor( %s%s%sdesc )\n",
-                p.get_name(), subsc, self.global_name, p_cellcb, delim, subsc)
+                "          %s_%s_set_descriptor( %s%s%sdesc )\n",
+                p.get_name(), subsc, self.global_name, p.get_name(), p_cellcb, delim, subsc)
             f.printf(
                 "#define %s_unjoin( %s )\\\n"
-                "          %s_unjoin( %s%s )\n",
-                p.get_name(), subsc2, self.global_name, p_cellcb, subsc3)
+                "          %s_%s_unjoin( %s%s )\n",
+                p.get_name(), subsc2, self.global_name, p.get_name(), p_cellcb, subsc3)
         f.print("\n")
 
     def gen_ph_ep_fun_macro(self, f):
@@ -1110,7 +1110,7 @@ class _CelltypeGenerate:
                             "    struct tag_{}_VDES {}{}*{}_init_; /* TCP_1 */\n".format(
                                 p.get_signature().get_global_name(), ptr, const2, p.get_name()))
                     f.print(
-                        "    struct tag_{}_VDES {}{}*{};{} /* TCP_2 */\n".format(
+                        "    struct tag_{}_VDES {}{}*{}{}; /* TCP_2 */\n".format(
                             p.get_signature().get_global_name(), ptr, const, p.get_name(), init))
                     if p.get_array_size() == "[]":
                         f.print("    int_t n_{};  /* TCP_3 */\n".format(p.get_name()))
@@ -1382,7 +1382,154 @@ class _CelltypeGenerate:
                 f.print("\t/* empty */\n")
 
     def gen_ph_dealloc_code(self, f, append_name, b_undef=False):
-        pass
+        #=== send/receive で受け取ったメモリ領域を dealloc するマクロコード
+        #f:: File
+        #b_undef:: bool : true = #undef コードの生成,  false = #define コードの生成
+        b_msg = False
+        for p in self.port:
+            if p.is_omit():
+                continue
+
+            def _each(port, fd, par):
+                nonlocal b_msg
+                direction = par.get_direction()
+                if direction == "SEND":
+                    # next if port.get_port_type == :CALL
+                    type_ = par.get_declarator().get_type()
+                    pre = "("
+                    post = ")"
+                elif direction == "RECEIVE":
+                    # next if port.get_port_type == :ENTRY
+                    type_ = par.get_declarator().get_type().get_type()
+#          pre = "(*"
+#          post = ")"
+                    pre = "("
+                    post = ")"
+                else:
+                    return
+
+                #                      ポート名         関数名         パラメータ名
+                dealloc_func_name = "{}_{}_{}_dealloc".format(
+                    port.get_name(), fd.get_name(), par.get_name())
+                dealloc_macro_name = dealloc_func_name.upper()
+                name = par.get_name()
+
+                if b_undef is False:
+                    if (type_.get_size() or type_.get_count()) and type_.get_type().has_pointer():
+                        count_str = "count__"
+                        count_str2 = ", count__"
+                    else:
+                        count_str = None
+                        count_str2 = None
+                    if not b_msg:
+                        f.print("\n")
+                        f.printf(TECSMsg.get("DAL_comment"), "#_DAL_#  {}".format(append_name))
+                        b_msg = True
+                    f.print("#define {}{}({}{})".format(
+                        dealloc_macro_name, append_name, name,
+                        count_str2 if count_str2 else ""))
+                    if append_name == "_RESET":
+                        self.gen_dealloc_code_for_type(
+                            f, type_, dealloc_func_name, pre, name, post, 0, True, count_str)
+                    else:
+                        self.gen_dealloc_code_for_type(
+                            f, type_, dealloc_func_name, pre, name, post, 0, False, count_str)
+                    f.print("\n")
+                else:
+                    f.print("#undef {}{}\n".format(dealloc_macro_name, append_name))
+
+            p.each_param(_each)
+
+    #=== decl 用の dealloc コードを生成
+    #b_reset:: Bool:  リセット用の dealloc コードの生成 (NULL ポインタの場合 dealloc しない)
+    # mikan string 修飾されたポインタの先にポインタが来ないと仮定。ポインタ型を持つ構造体の可能性を排除していない
+    # このメソッドでは、行を出力する直前に " \\\n" を出力し、行末で改行文字を出力しない
+    def gen_dealloc_code_for_type(
+            self, f, type_, dealloc_func_name, pre, name, post, level, b_reset, count_str=None):
+        type_ = type_.get_original_type()
+        indent = "\t" + "  " * (level + 1)
+        if not type_.has_pointer():
+            return
+        elif isinstance(type_, ArrayType):
+            if type_.get_type().has_pointer():
+                loop_str = "i{}__".format(level)
+                count_str = "{}".format(type_.get_subscript().eval_const(None))
+                f.print(" \\\n")
+                f.print("{}{{ int_t  {};".format(indent, loop_str))
+                f.print(" \\\n")
+                f.print("{}  for( {} = 0; {} < {}; {}++ ){{ ".format(
+                    indent, loop_str, loop_str, count_str, loop_str))
+
+                self.gen_dealloc_code_for_type(
+                    f, type_.get_type(), dealloc_func_name, pre, name,
+                    "{}[{}]".format(post, loop_str), level + 2, b_reset)
+
+                f.print(" \\\n")
+                f.print("{}  }}".format(indent))
+                f.print(" \\\n")
+                f.print("{}}}".format(indent))
+        elif isinstance(type_, StructType):
+            members_decl = type_.get_members_decl()
+            for md in members_decl.get_items():
+                pre2 = pre + str(name) + post + "."
+                name2 = md.get_name()
+                post2 = ""
+                type2 = md.get_type().get_original_type()
+                if isinstance(type2, PtrType):   # mikan typedef された型
+                    if type2.get_count():
+                        count_str = type2.get_count().to_str(members_decl, pre2, post2)
+                    elif type2.get_size():
+                        count_str = type2.get_size().to_str(members_decl, pre2, post2)
+                    else:
+                        count_str = None
+                else:
+                    count_str = None
+                self.gen_dealloc_code_for_type(
+                    f, md.get_type(), dealloc_func_name, pre2, name2, post2, level, b_reset, count_str)
+
+        elif isinstance(type_, PtrType):
+
+            if b_reset or type_.is_nullable():
+                nullable = ""
+                if (not b_reset) and type_.is_nullable():
+                    nullable = "\t/* nullable */"
+                level2 = level + 1
+                indent2 = indent + "  "
+                f.print(" \\\n")
+                f.print("{}if( {}{}{} ){{{}".format(indent, pre, name, post, nullable))
+            else:
+                level2 = level
+                indent2 = indent
+
+            if type_.get_type().has_pointer():
+                if count_str:
+                    loop_str = "i{}__".format(level)
+                    f.print(" \\\n")
+                    f.print("{}{{ int_t  {};".format(indent2, loop_str))
+                    f.print(" \\\n")
+                    f.print("{}  for( {} = 0; {} < {}; {}++ ){{ ".format(
+                        indent2, loop_str, loop_str, count_str, loop_str))
+
+                    self.gen_dealloc_code_for_type(
+                        f, type_.get_type(), dealloc_func_name, pre, name,
+                        "{}[{}]".format(post, loop_str), level2 + 2, b_reset)
+
+                    f.print(" \\\n")
+                    f.print("{}  }}".format(indent2))
+                    f.print(" \\\n")
+                    f.print("{}}}".format(indent2))
+                else:
+                    self.gen_dealloc_code_for_type(
+                        f, type_.get_type(), dealloc_func_name,
+                        "(*{}".format(pre), name, "{})".format(post), level2, b_reset)
+            f.print(" \\\n")
+            f.print("{}{}( {}{}{} ); ".format(indent2, dealloc_func_name, pre, name, post))
+
+            if b_reset or type_.is_nullable():
+                f.print(" \\\n")
+                f.print("{}}}".format(indent))
+        else:
+            raise Exception("UnknownType")
 
     def gen_ph_inline(self, f):
         if self.n_entry_port_inline > 0:
@@ -1781,8 +1928,9 @@ class _CelltypeGenerate:
                         f.print("    0,\n")
                 f.print("};\n")
                 if port.is_dynamic() and G.ram_initializer:
+                    # Ruby: struct %s * %s_%s[ #{length} ];
                     f.printf(
-                        "struct {} * {}_{}[ {} ];\n",
+                        "struct %s * %s_%s[ %s ];\n",
                         "tag_{}_VDES".format(port.get_signature().get_global_name()),
                         c.get_global_name(),
                         port.get_name(),
@@ -1840,7 +1988,8 @@ class _CelltypeGenerate:
                                     self.gen_cell_cb_init(
                                         f, c, name_array, array_type, init,
                                         a.get_identifier(), 1, True))
-                                str_ = str_.replace("}", "};\n", 1)
+                                # Ruby: str.sub( /\}$/, "};\n" ) — 末尾の } のみ
+                                str_ = re.sub(r"\}$", "};\n", str_)
                             else:
                                 str_ = ";\n"
                             f.print(str_)
@@ -2304,10 +2453,9 @@ class _CelltypeGenerate:
                         if p.get_array_size() == "[]":
                             print_indent(f, indent + 1)
                             f.printf(
-                                "%-40s /* length of {} (n_{}) #_CCP6_# */\n",
+                                "%-40s /* %s #_CCP6_# */\n",
                                 "0,",
-                                p.get_name(),
-                                p.get_name(),
+                                "length of {} (n_{})".format(p.get_name(), p.get_name()),
                             )
                     else:
                         f.printf("%-40s /* #_CCP5_# */\n", "0,")

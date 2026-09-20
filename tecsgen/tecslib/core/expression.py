@@ -47,7 +47,8 @@ class Expression(Node):
     #=== Expression# to_str
     # C 言語ソース向きの文字列を生成 (globa_name)
     def to_str(self, name_list, pre, post):
-        return self.elements_to_s(self.elements, name_list, pre, post)
+        # Ruby の "#{pre}#{name}#{post}" では nil が空文字になる
+        return self.elements_to_s(self.elements, name_list, pre or "", post or "")
 
     #=== Expression#to_CDL_str
     # CDL 表現の文字列を生成
@@ -167,63 +168,63 @@ class Expression(Node):
             return "({}){}".format(elements[1].get_type_str(),
                                    self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_MULT":
-            return "{}{}*{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}*{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_DIV":
-            return "{}{}/{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}/{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_REMAIN":
-            return "{}{}%{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}%{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_ADD":
-            return "{}{}+{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}+{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_SUB":
-            return "{}{}-{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}-{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_LSFT":
-            return "{}{}<<{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}<<{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_RSFT":
-            return "{}{}>>{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}>>{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_LT":
-            return "{}{}<{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}<{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_GT":
-            return "{}{}>{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}>{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_LE":
-            return "{}{}<={}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}<={}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_GE":
-            return "{}{}>={}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}>={}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_EQ":
-            return "{}{}=={}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                      self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}=={}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_NE":
-            return "{}{}!={}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                      self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}!={}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_AND":
-            return "{}{}&{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}&{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_EOR":
-            return "{}{}^{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}^{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_OR":
-            return "{}{}|{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                    self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}|{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                  self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_LAND":
-            return "{}{}&&{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}&&{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_LOR":
-            return "{}{}||{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                     self.elements_to_s(elements[2], name_list, pre, post))
+            return "{}||{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                   self.elements_to_s(elements[2], name_list, pre, post))
         elif tag == "OP_CEX":
-            return "{}{}?{}:{}".format(self.elements_to_s(elements[1], name_list, pre, post),
-                                        self.elements_to_s(elements[2], name_list, pre, post),
-                                        self.elements_to_s(elements[3], name_list, pre, post))
+            return "{}?{}:{}".format(self.elements_to_s(elements[1], name_list, pre, post),
+                                     self.elements_to_s(elements[2], name_list, pre, post),
+                                     self.elements_to_s(elements[3], name_list, pre, post))
         else:
             raise Exception("Unknown expression element: {}. try -t and please report".format(elements[0]))
         return ""
@@ -248,7 +249,7 @@ class Expression(Node):
             if nsp.is_name_only():
                 count = 0
                 # p "search: #{nsp.get_name}"
-                for nm, val in name_list.get_items():
+                for nm in name_list.get_items():
                     # p "    : #{nm.get_name} #{nsp.get_name.class} #{nm.get_name.class}"
                     if nsp.get_name() == nm.get_name():
                         return " ${}".format(count)
@@ -454,7 +455,17 @@ class Expression(Node):
             len_ = len(str_)
             if len_ == 1:
                 sum_ = 0
-                for b in str_.encode("latin-1", "surrogateescape"):
+                # Ruby の String#each_byte 相当。ファイル文字コードのバイト列で評価する
+                # (Shift_JIS 等で Unicode 化した後に latin-1 へ再符号化すると失敗する)
+                from tecslib.core import globals as G
+                enc = G.Ruby19_File_Encode
+                if enc == "Shift_JIS":
+                    byte_enc = "cp932"
+                elif enc in ("ASCII-8BIT", "BINARY", "binary"):
+                    byte_enc = "latin-1"
+                else:
+                    byte_enc = enc
+                for b in str_.encode(byte_enc, "surrogateescape"):
                     sum_ = sum_ * 256 + b
                 return IntegerVal(sum_, elements[1].val)
             else:

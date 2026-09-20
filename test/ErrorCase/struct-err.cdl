@@ -1,0 +1,17 @@
+/*
+ * #1202 cygwin上でtecsgenのtest/cygwinを-Iで指定しない場合、tecsgenがRuby例外発生
+ */
+struct A {
+  int a;
+};
+
+celltype tCt {
+ attr {
+   struct A a;
+ };
+};
+
+cell tCt Cell {
+   a = AAA;
+};
+

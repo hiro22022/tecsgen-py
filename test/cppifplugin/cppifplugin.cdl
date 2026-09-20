@@ -1,0 +1,94 @@
+import_C( "tecs.h" );
+
+/*
+ * signature: 32bit Arithmetic Operation
+ */
+signature sArithmeticOperation32 {
+    int32_t  add( [in]int32_t x, [in]int32_t y );     /* x + y */
+    int32_t  sub( [in]int32_t x, [in]int32_t y );     /* x - y */
+    int32_t  mul( [in]int32_t x, [in]int32_t y );     /* x * y */
+    int32_t  div( [in]int32_t x, [in]int32_t y );     /* x / y */
+    int32_t  rem( [in]int32_t x, [in]int32_t y );     /* x % y */
+};
+
+/*
+ * signature: 64bit Arithmetic Operation
+ */
+signature sArithmeticOperation64 {
+    int64_t  add( [in]int64_t x, [in]int64_t y );     /* x + y */
+    int64_t  sub( [in]int64_t x, [in]int64_t y );     /* x - y */
+    int64_t  mul( [in]int64_t x, [in]int64_t y );     /* x * y */
+    int64_t  div( [in]int64_t x, [in]int64_t y );     /* x / y */
+    int64_t  rem( [in]int64_t x, [in]int64_t y );     /* x % y */
+};
+
+/*
+ * celltype: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, ""),
+ pseudo_active]                         // pseudo_active: because called from C++ code
+celltype tArithmeticOperation {
+    entry sArithmeticOperation32 eIAO32;
+    entry sArithmeticOperation64 eIAO64;
+};
+
+/*
+ * cell: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, "")]        // CppIfGenPlugin は celltype か cell の一方で指定すればよい(この指定は冗長)
+cell tArithmeticOperation IAO{};
+
+/*
+ * celltype: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, ""),
+ pseudo_active,                         // pseudo_active: because called from C++ code
+ singleton]                             // singleton
+celltype tArithmeticOperationSingleton {
+    entry sArithmeticOperation32 eIAO32;
+    entry sArithmeticOperation64 eIAO64;
+};
+
+/*
+ * cell: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, "")]
+cell tArithmeticOperationSingleton IAOSingleton{};
+
++---------------------------------------------------------
+----------------   case of entry array   -----------------
+---------------------------------------------------------+
+
+/*
+ * celltype: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, ""),
+ pseudo_active]                         // pseudo_active: because called from C++ code
+celltype tArithmeticOperationEA {
+    entry sArithmeticOperation32 eIAO32[];
+    entry sArithmeticOperation64 eIAO64[4];
+};
+
+/*
+ * cell: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, "")]        // CppIfGenPlugin は celltype か cell の一方で指定すればよい(この指定は冗長)
+cell tArithmeticOperationEA IAOEA{};
+
+/*
+ * celltype: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, ""),
+ pseudo_active,                         // pseudo_active: because called from C++ code
+ singleton]                             // singleton
+celltype tArithmeticOperationSingletonEA {
+    entry sArithmeticOperation32 eIAO32[3];
+    entry sArithmeticOperation64 eIAO64[];
+};
+
+/*
+ * cell: 32bit and 64bit Arithmetic Operator
+ */
+[generate( CppIfGenPlugin, "")]
+cell tArithmeticOperationSingletonEA IAOSingletonEA{};
+

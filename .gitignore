@@ -1,0 +1,23 @@
+# 生成物・一時ファイル
+gen/
+gen_rb/
+gen_py/
+gen_rb.norm/
+gen_py.norm/
+*.out
+*.err
+*.out.norm
+*.err.norm
+__pycache__/
+*.pyc
+*.pyo
+*~
+*.o
+*.exe
+*.stackdump
+
+# テスト実行の生成物
+test/**/gen/
+test/result*.txt
+test/coverage/
+test/coverage.data

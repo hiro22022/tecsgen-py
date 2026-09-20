@@ -1,0 +1,283 @@
+import_C( "tecs.h" );
+import( <cygwin_kernel.cdl> );
+import( <tSysLog.cdl> );
+
+cell tSysLog SysLog {};
+
+/*--------------  Type Definiton  -----------------*/
+typedef struct tag_date {
+     uint16_t  year;
+     uint8_t   month;
+     uint8_t   day;
+} Date;
+
+/*--------------  Data Definiton  -----------------*/
+[generate(DataPumpHolderPlugin, ""),
+ pseudo_active]
+celltype tPersonalData {
+    attr {      // read only data
+        int_t       count;
+	    Date     	BirthDay;
+    };
+    var{
+        uint8_t   	Age;
+        [size_is(64)]
+            char_t    *Name;
+	};
+};
+
+/*--------------  Signatures -----------------*/
+signature sMain{
+    void Main(void);
+};
+
+/*--------------  Celltypes -----------------*/
+celltype tPersonalDataSub {
+    entry sPersonalDataSetSignature eC4SubSet;     // C4 結合 (DataPump) テスト
+    call  sPersonalDataGetSignature cC3SubGet;     // C3 結合 (DataHolder) テスト
+    entry sMain                     eC3Main;       // C3 メイン
+    call  sPersonalDataGetSignature cC2SubGet;     // C2 結合 (DataPumpHolder) テスト
+    entry sMain                     eC2Main;       // C2 メイン
+
+    require tKernel.eKernel;
+    require tSysLog.eSysLog;
+};
+celltype tPersonalDataPub {
+    entry sPersonalDataGetSignature eC4PubGet;     // C4 結合 (DataPump) テスト
+    call  sPersonalDataSetSignature cC3PubSet;     // C3 結合 (DataHolder) テスト
+    entry sMain                     eC3Main;       // C3 メイン
+    entry sPersonalDataGetSignature eC2PubGet;     // C2 結合 (DataPumpHolder) テスト
+    require tSysLog.eSysLog;
+};
+celltype tTaskMain {
+    attr {
+        char_t *name;
+    };
+    entry sTaskBody                eTaskBody;
+    call sPumpMain                 cC4Call;
+    call sMain                     cC3PubMain;
+    [optional]
+        call sMain                 cC3SubMain;  // 別タスクから呼ばれるケースがある
+    call sPumpMain                 cC2PumpMain;
+    [optional]
+        call sMain                 cC2SubMain;  // 別タスクから呼ばれるケースがある
+    require tKernel.eKernel;
+    require tSysLog.eSysLog;
+};
+
+celltype tMainMain {
+    entry sTaskBody eTaskBody;
+    call  sTaskBody cTaskBody[];
+    require tSysLog.eSysLog;
+    require tKernel.eKernel;
+};
+
+/*
+ * kernel.cdl で定義される sTaskBody を sPumpMain に変換するセルタイプ
+ */
+celltype tLoopMain {
+    [inline]
+    entry sTaskBody eTaskBody;
+    call  sMain     cMain;
+};
+
+[active]
+composite tsMainTask{
+    call sMain cMain;
+    cell tTask Task {
+        cTaskBody = LoopMain.eTaskBody;
+        priority = 11;
+        stackSize = 1024;
+        attribute = C_EXP("TA_ACT");
+    };
+    cell tLoopMain LoopMain {
+        cMain => composite.cMain;
+    };
+};
+
+/*--------------- Cells ------------------*/
+
++--- Skip 1 ----
+---- Skip 1 ---+
+/*----------- Non-Buffered Version wo/synchronous ----------*/
+[in_through(), out_through()]
+region rNonBuffered{
+    /* Pub & Sub */
+    cell tPersonalDataPub PersonalDataPub{
+        cC3PubSet = PersonalDataDataHolder.ePubSide;
+    };
+    cell tPersonalDataSub PersonalDataSub{
+        cC3SubGet = PersonalDataDataHolder.eSubSide;
+        cC2SubGet = PersonalDataDataPumpHolder.eSubSide;
+    };
+
+    /* Data Transferer Cells */
+    cell tPersonalDataDataPump PersonalDataDataPump{
+        cSubSide = PersonalDataSub.eC4SubSet;
+        cPubSide = PersonalDataPub.eC4PubGet;
+    };
+
+    cell tPersonalDataDataHolder PersonalDataDataHolder{
+    };
+
+    cell tPersonalDataDataPumpHolder PersonalDataDataPumpHolder{
+        cPubSide = PersonalDataPub.eC2PubGet;
+    };
+
+    /* Main */
+    cell tTaskMain TaskMain {
+        name = "NonBuffered";
+        cC4Call = PersonalDataDataPump.ePumpMain;
+        cC3PubMain = PersonalDataPub.eC3Main;
+        cC3SubMain = PersonalDataSub.eC3Main;
+        cC2PumpMain = PersonalDataDataPumpHolder.ePumpMain;
+        cC2SubMain  = PersonalDataSub.eC2Main;
+    };
+};
+
+/*----------- Buffered Version wo/synchronous ----------*/
+[in_through(), out_through()]
+region rBuffered {
+    /* Pub & Sub */
+    cell tPersonalDataPub PersonalDataPub{
+        cC3PubSet = PersonalDataDataHolder.ePubSide;
+    };
+    cell tPersonalDataSub PersonalDataSub{
+        cC3SubGet = PersonalDataDataHolder.eSubSide;
+        cC2SubGet = PersonalDataDataPumpHolder.eSubSide;
+    };
+
+    /* Data Transferer Cells */
+    cell tPersonalDataDataPumpBuffered PersonalDataDataPump{
+        cSubSide = PersonalDataSub.eC4SubSet;
+        cPubSide = PersonalDataPub.eC4PubGet;
+        taskPriority = 11;      // Buffered
+    };
+
+    cell tPersonalDataDataHolderBuffered PersonalDataDataHolder{
+        taskPriority = 17;      // Buffered
+    };
+
+    cell tPersonalDataDataPumpHolderBuffered PersonalDataDataPumpHolder{
+        cPubSide = PersonalDataPub.eC2PubGet;
+        taskPriority = 17;      // Buffered
+    };
+
+    /* Main */
+    cell tTaskMain TaskMain {
+        name = "Buffered";
+        cC4Call = PersonalDataDataPump.ePumpMain;
+        cC3PubMain = PersonalDataPub.eC3Main;
+        cC3SubMain = PersonalDataSub.eC3Main;
+        cC2PumpMain = PersonalDataDataPumpHolder.ePumpMain;
+        cC2SubMain  = PersonalDataSub.eC2Main;
+    };
+};
+
+/*----------- Non-Buffered Version w/synchronous ----------*/
+[in_through(), out_through()]
+region rNonBufferedSync{
+    /* Pub & Sub */
+    cell tPersonalDataPub PersonalDataPub{
+        cC3PubSet = PersonalDataDataHolder.ePubSide;
+    };
+    cell tPersonalDataSub PersonalDataSub{
+        cC3SubGet = PersonalDataDataHolder.eSubSide;
+        cC2SubGet = PersonalDataDataPumpHolder.eSubSide;
+    };
+
+    /* Data Transferer Cells */
+    cell tPersonalDataDataPump PersonalDataDataPump{
+        cSubSide = PersonalDataSub.eC4SubSet;
+        cPubSide = PersonalDataPub.eC4PubGet;
+    };
+
+    cell tPersonalDataDataHolderSync PersonalDataDataHolder{
+    };
+
+    cell tPersonalDataDataPumpHolderSync PersonalDataDataPumpHolder{
+        cPubSide = PersonalDataPub.eC2PubGet;
+    };
+
+    /* Main */
+    cell tTaskMain TaskMain {
+        name = "NonBuffered-Sync";
+        cC4Call = PersonalDataDataPump.ePumpMain;
+        cC3PubMain = PersonalDataPub.eC3Main;
+        cC2PumpMain = PersonalDataDataPumpHolder.ePumpMain;
+    };
+    cell tsMainTask C3SubMain{
+        cMain = PersonalDataSub.eC3Main;
+    };
+    cell tsMainTask C2SubMain{
+        cMain = PersonalDataSub.eC2Main;
+    };
+};
+
+/*----------- Buffered Version w/synchronous ----------*/
+[in_through(), out_through()]
+region rBufferedSync {
+    /* Pub & Sub */
+    cell tPersonalDataPub PersonalDataPub{
+        cC3PubSet = PersonalDataDataHolder.ePubSide;
+    };
+    cell tPersonalDataSub PersonalDataSub{
+        cC3SubGet = PersonalDataDataHolder.eSubSide;
+        cC2SubGet = PersonalDataDataPumpHolder.eSubSide;
+    };
+
+    /* Data Transferer Cells */
+    cell tPersonalDataDataPumpBuffered PersonalDataDataPump{
+        cSubSide = PersonalDataSub.eC4SubSet;
+        cPubSide = PersonalDataPub.eC4PubGet;
+        taskPriority = 11;      // Buffered
+    };
+
+    cell tPersonalDataDataHolderBufferedSync PersonalDataDataHolder{
+        taskPriority = 17;      // Buffered
+    };
+
+    cell tPersonalDataDataPumpHolderBufferedSync PersonalDataDataPumpHolder{
+        cPubSide = PersonalDataPub.eC2PubGet;
+        taskPriority = 17;      // Buffered
+    };
+
+    /* Main */
+    cell tTaskMain TaskMain {
+        name = "Buffered";
+        cC4Call = PersonalDataDataPump.ePumpMain;
+        cC3PubMain = PersonalDataPub.eC3Main;
+        //cC3SubMain = PersonalDataSub.eC3Main;
+        cC2PumpMain = PersonalDataDataPumpHolder.ePumpMain;
+        //cC2SubMain  = PersonalDataSub.eC2Main;
+    };
++--- Skip 2 ----
+---- Skip 2 ---+
+    cell tsMainTask C3SubMain{
+        cMain = PersonalDataSub.eC3Main;
+    };
+    cell tsMainTask C2SubMain{
+        cMain = PersonalDataSub.eC2Main;
+    };
+};
+
+/*----- Task and Main of Main -------- */
+cell tMainMain MainMain{
+    cTaskBody[] = rNonBuffered::TaskMain.eTaskBody;
+    cTaskBody[] = rBuffered::TaskMain.eTaskBody;
+    cTaskBody[] = rNonBufferedSync::TaskMain.eTaskBody;
+    cTaskBody[] = rBufferedSync::TaskMain.eTaskBody;
+};
+
+cell tTask Task {
+    cTaskBody = MainMain.eTaskBody;
+    priority = 11;
+    stackSize = 1024;
+    attribute = C_EXP("TA_ACT");
+};
+
+cell tKernel Kernel{};
+
+/* test: "DataPumpHolder=false" */
+generate(TransparentRPCSignaturePlugin, sPersonalDataSetSignatureAsync, "PPAllocatorSize=128,DataPumpHolder=false");
+generate(TransparentRPCSignaturePlugin, sPersonalDataSetSignature, "PPAllocatorSize=128");

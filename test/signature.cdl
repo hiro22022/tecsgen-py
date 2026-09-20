@@ -1,0 +1,31 @@
+signature sSig {
+  int32_t  send( [out]int32_t *out, [inout]int32_t *inout );
+  int32_t  func( [out]int32_t *out, [inout]int32_t *inout );
+  int32_t  func2( [in]const int32_t *in, [inout]int32_t *inout );
+  int32_t  func3( [in]const int32_t *in, [inout]int32_t *inout );
+};
+
+signature sNull {
+};
+
+// -------------------------------------//
+// #1183 new defect
+// ポインタのポインタを使うと警告が出る＆エラーになる 
+[deviate]     //  逸脱が指定されている場合、警告、エラーとしない
+      // warning: W3003 p_exinf pointer level mismatch
+      // error: S2016 'p_exinf' can not be const for OUT parameter
+
+signature sTest2 {
+	void	func1([out] void **p_exinf);        // 警告
+	void	func2([out] const void **p_exinf);  // 警告・エラー
+};
+
+[active]
+celltype tTest2 {
+	entry	sTest2		eTest2;
+};
+
+cell tTest2 Test2 {
+};
+// -------------------------------------//
+

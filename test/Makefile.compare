@@ -1,0 +1,30 @@
+# Copyright (c) 2009-2021 by TOPPERS Project TECS WG.
+#
+# Python 版と Ruby 版の出力差分比較（プラグイン非依存の CDL）。
+# 使い方: リポジトリルートで make compare
+#         または cd test && make -f Makefile.compare
+
+DIFF = ../tools/diff_with_ruby.sh
+INC = -I RUNTIME/runtime/include -I RUNTIME/runtime/test
+
+# 生成物・stdout/stderr が Ruby と一致することを確認済みのケース
+COMPARE_CDLS = \
+	empty.cdl \
+	const.cdl \
+	init.cdl \
+	factory.cdl \
+	float.cdl \
+	id.cdl \
+	c_exp.cdl \
+	struct.cdl \
+	singleton.cdl \
+	int.cdl \
+	oneway.cdl
+
+.PHONY: all $(COMPARE_CDLS)
+all: $(COMPARE_CDLS)
+	@echo "compare: all listed CDLs matched Ruby"
+
+$(COMPARE_CDLS):
+	@echo "==== $@"
+	@$(DIFF) $(INC) $@

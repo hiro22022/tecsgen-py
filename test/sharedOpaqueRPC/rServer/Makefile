@@ -1,0 +1,81 @@
+# 変数 #_MVAR_#
+TARGET = opaqueRPC-rServer.exe
+TIMESTAMP = tecsgen.timestamp
+TECSGEN_EXE = tecsgen
+BASE_DIR = ..
+CC = gcc
+CFLAGS = -g -I $(BASE_DIR)/. -I $(BASE_DIR)/.. -I $(BASE_DIR)/../cygwin3 -I $(TECSPATH) -I $(TECSPATH)/mruby -I $(TECSPATH)/rpc -I $(BASE_DIR)/rpc -I $(GEN_DIR) -D __extension__= -D "Inline=static inline"
+LD = gcc
+LDFLAGS = -lpthread
+GEN_DIR = $(BASE_DIR)/gen/rServer
+SRC_DIR = $(BASE_DIR)/src
+_TECS_OBJ_DIR = $(GEN_DIR)/
+#   _TECS_OBJ_DIR   # should end with '/'
+
+vpath %.c $(SRC_DIR) $(GEN_DIR)  ../.. ../../cygwin3 $(TECSPATH) $(TECSPATH)/mruby $(TECSPATH)/rpc ../rpc
+vpath %.h $(SRC_DIR) $(GEN_DIR)  ../.. ../../cygwin3 $(TECSPATH) $(TECSPATH)/mruby $(TECSPATH)/rpc ../rpc
+
+# OTHER_OBJS =                       # Add objects out of tecs care.
+OTHER_OBJS = $(_TECS_OBJ_DIR)vasyslog.o
+
+# ルール #_MRUL_#
+allall: tecs
+	make all     # in order to include generated Makefile.tecsgen & Makefile.depend
+
+all : $(TARGET)
+
+
+# depend を include #_MDEP_#
+-include $(GEN_DIR)/Makefile.tecsgen
+-include $(GEN_DIR)/Makefile.depend
+
+$(TARGET) : $(CELLTYPE_COBJS) $(TECSGEN_COBJS) $(PLUGIN_COBJS) $(OTHER_OBJS)
+	$(LD) -o $(TARGET) $(TECSGEN_COBJS) $(CELLTYPE_COBJS) $(PLUGIN_COBJS) $(OTHER_OBJS) $(LDFLAGS)
+clean :
+	rm -f $(CELLTYPE_COBJS) $(TECSGEN_COBJS) $(PLUGIN_COBJS) $(OTHER_OBJS) $(TARGET) 
+
+tecs:
+	@echo "run 'make tecs' in root region"
+
+$(_TECS_OBJ_DIR)tSysLog.o : tSysLog.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tTask.o : tTask.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tKernel.o : tKernel.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tTDR.o : tTDR.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tRPCSharedTaskMainWithOpener.o : tRPCSharedTaskMainWithOpener.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tPPAllocator.o : tPPAllocator.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tSocketServer.o : tSocketServer.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tAlloc.o : tAlloc.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tSimpleServer.o : tSimpleServer.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tSampleServer.o : tSampleServer.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tOpaqueUnmarshaler_sSample.o : tOpaqueUnmarshaler_sSample.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tTracePlugin_sSimple.o : tTracePlugin_sSimple.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)tOpaqueUnmarshaler_sSimple.o : tOpaqueUnmarshaler_sSimple.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 
+$(_TECS_OBJ_DIR)vasyslog.o : vasyslog.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+ 

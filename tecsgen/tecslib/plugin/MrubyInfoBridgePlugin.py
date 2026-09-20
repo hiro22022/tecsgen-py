@@ -13,11 +13,11 @@ class MrubyInfoBridgePlugin(MultiPlugin):
         from tecslib.plugin.SignaturePlugin import SignaturePlugin
         from tecslib.plugin.CellPlugin import CellPlugin
 
-        if superClass is SignaturePlugin:
+        if issubclass(superClass, SignaturePlugin):
             dbgPrint("MrubyInfoBridgePlugin: SignaturePlugin\n")
             from tecslib.plugin.MrubyInfoBridgeSignaturePlugin import MrubyInfoBridgeSignaturePlugin
             return MrubyInfoBridgeSignaturePlugin
-        if superClass is CellPlugin:
+        if issubclass(superClass, CellPlugin):
             dbgPrint("MrubyInfoBridgePlugin: CellPlugin\n")
             from tecslib.plugin.MrubyInfoBridgeCellPlugin import MrubyInfoBridgeCellPlugin
             return MrubyInfoBridgeCellPlugin

@@ -163,6 +163,22 @@ parser = yacc.yacc(write_tables=False, debug=False, errorlog=type("L", (), {
     "error": staticmethod(lambda *a, **k: None),
 })())
 
+# PLY の set_defaulted_states は「アクション表のエントリが1個」のときだけ
+# default reduce にする。typeof_skip / asm_skip は全 lookahead が同じ reduce でも
+# エントリが複数あるため先読みしてしまう。racc（Ruby）は先読みしないので、
+# next_token で (...)/; まで捨てる空規則が壊れる。対象状態だけ defaulted にする。
+_SKIP_EMPTY_RULES = frozenset({"typeof_skip", "asm_skip"})
+for _state, _actions in parser.action.items():
+    _vals = set(_actions.values())
+    if len(_vals) != 1:
+        continue
+    _v = next(iter(_vals))
+    if _v >= 0:
+        continue
+    _prod = parser.productions[-_v]
+    # 空規則は len==0 で falsy になるので is not None で判定する
+    if _prod is not None and _prod.name in _SKIP_EMPTY_RULES:
+        parser.defaulted_states[_state] = _v
 
 
 def _c_parser_do_parse(self):

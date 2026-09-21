@@ -140,14 +140,83 @@ class Makefile:
         cls.add_var("_TECS_OBJ_DIR", "$(GEN_DIR)/", "default relocatable object (.o) directory")
 
 
+###
+#== CMakeLists.tecsgen.cmake の出力内容を追加、変更するための操作
+class CMake:
+    _sources = []
+    _includes = []
+    _defines = []
+    _link_options = []
+    _custom_commands = []
+    _lines = []
+
+    @classmethod
+    def add_source(cls, src):
+        cls._sources.append(str(src))
+
+    @classmethod
+    def add_include(cls, path):
+        cls._includes.append(str(path))
+
+    @classmethod
+    def add_define(cls, define):
+        cls._defines.append(str(define))
+
+    @classmethod
+    def add_link_option(cls, opt):
+        cls._link_options.append(str(opt))
+
+    @classmethod
+    def add_custom_command(cls, cmd):
+        cls._custom_commands.append(str(cmd))
+
+    @classmethod
+    def add_line(cls, line):
+        cls._lines.append(str(line))
+
+    @classmethod
+    def get_sources(cls):
+        return list(dict.fromkeys(cls._sources))
+
+    @classmethod
+    def get_includes(cls):
+        return list(dict.fromkeys(cls._includes))
+
+    @classmethod
+    def get_defines(cls):
+        return list(dict.fromkeys(cls._defines))
+
+    @classmethod
+    def get_link_options(cls):
+        return list(dict.fromkeys(cls._link_options))
+
+    @classmethod
+    def get_custom_commands(cls):
+        return list(dict.fromkeys(cls._custom_commands))
+
+    @classmethod
+    def get_lines(cls):
+        return list(dict.fromkeys(cls._lines))
+
+    @classmethod
+    def set_default_config(cls):
+        cls._sources = []
+        cls._includes = []
+        cls._defines = []
+        cls._link_options = []
+        cls._custom_commands = []
+        cls._lines = []
+
+
 @reopen(TECSGEN)
 class _:
 
     # ポストコード生成開始後 True
     _b_post_coded = False
 
-    # Ruby 版の TECSGEN::Makefile
+    # Ruby 版の TECSGEN::Makefile / TECSGEN::CMake
     Makefile = Makefile
+    CMake = CMake
 
     #=== import パス (-I) を末尾に追加
     # 既に登録済みであれば、追加しない
@@ -195,7 +264,7 @@ class _:
     @classmethod
     def set_default_config(cls):
         Makefile.set_default_config()
-
+        CMake.set_default_config()
     @classmethod
     def get_argv(cls):
         return G.ARGV

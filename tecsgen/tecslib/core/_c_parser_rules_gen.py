@@ -496,9 +496,18 @@ def p_type_specifier_15(p):
     C_parser.current().set_no_type_name(True); p[0] = CVoidType()
 
 def p_type_specifier_16(p):
-    '''type_specifier : TYPEOF'''
+    # TYPEOF の直後に空規則を挟む。
+    # PLY は type_specifier:TYPEOF だけだと lookahead '(' を先読みしたまま還元し、
+    # アクション内 next_token が '(' を取り逃す（racc では先読みしない）。
+    # 空規則が default reduce になると next_token で Ruby と同じく (... ) を捨てられる。
+    '''type_specifier : TYPEOF typeof_skip'''
+    C_parser.current().set_no_type_name(True)
+    p[0] = CVoidType()
+
+def p_typeof_skip(p):
+    '''typeof_skip :'''
     token = C_parser.current().next_token()
-    if token and token[1].val == '(':
+    if token and token[0] is not None and token[1].val == '(':
         depth = 1
         while depth > 0:
             token = C_parser.current().next_token()
@@ -508,8 +517,6 @@ def p_type_specifier_16(p):
                 depth += 1
             elif token[1].val == ')':
                 depth -= 1
-    C_parser.current().set_no_type_name(True)
-    p[0] = CVoidType()
 
 def p_type_specifier_17(p):
     '''type_specifier : TYPE_NAME'''
@@ -1117,9 +1124,16 @@ def p_namespace_identifier_3(p):
     p[0] = p[1].append_bang( p[3].val )
 
 def p_asm_statement(p):
-    '''asm_statement : _ASM'''
+    # TYPEOF と同様、PLY lookahead を避けるため空規則で ; まで捨てる。
+    '''asm_statement : _ASM asm_skip'''
+    pass
+
+def p_asm_skip(p):
+    '''asm_skip :'''
     while True:
         token = C_parser.current().next_token()
+        if token is None or token[0] is None:
+            break
         if token[1].val == ";":
             break
 

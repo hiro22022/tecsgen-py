@@ -33,6 +33,7 @@ test/**/gen-?/
 test/**/gen-array*/
 test/**/gen-single*/
 test/**/gen2/
+test/**/gen_comp/
 test/merge/src/*.c_*
 test/result*.txt
 test/coverage/

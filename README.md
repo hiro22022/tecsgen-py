@@ -1,8 +1,17 @@
 # tecsgen (Python 版)
 
+## 状態
+
+現時点では、TECS ジェネレータ V1.9.1 に cmake 対応を付加したバージョンをベースに python 化した、試験的なものです。
+
+AI を使用して開発しています。
+make test, make test_exec が通ることまで確認していますが、make test_err で検出されるエラー個数には、差があります。
+
+## 概要
+
 [TECS](https://www.toppers.jp/tecs.html)（TOPPERS Embedded Component System）のインタフェースジェネレータ **tecsgen** の Python 移植です。
 
-隣の Ruby 版配布ルート（`../tecsgen/`）とディレクトリ構成・振る舞を揃え、生成結果の互換を目指しています。Pythonic な再設計は行わず、Ruby 版と 1:1 の対応を優先しています（詳細は [PORTING.md](PORTING.md)）。
+Ruby 版配布ルート（`../tecsgen/`）とディレクトリ構成・振る舞を揃え、生成結果の互換を目指しています。Pythonic な再設計は行わず、Ruby 版と 1:1 の対応を優先しています（詳細は [PORTING.md](PORTING.md)）。
 
 | 項目 | 内容 |
 | --- | --- |
